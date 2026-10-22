@@ -37,6 +37,12 @@ static int question2(void)
         return 1;
     }
 
+    printf("Question 2 - poids finaux après mise à jour :\n");
+    for (int j = 0; j < 48; j++) {
+        printf("w[%d] = %.6f\n", j, modele.w[j]);
+    }
+    printf("Question 2 - biais final : %.6f\n", modele.b);
+
     FILE *fichier = fopen("noise.csv", "r");
     if (fichier == NULL) {
         perror("Ouverture de noise.csv");
@@ -83,7 +89,6 @@ static int question2(void)
     }
     printf("Question 2 : motifs propres reconnus = %d/2 ; copies à 10 %% de bruit reconnues = %d/%d.\n",
            propres_corrects, bruit_corrects, bruit_total);
-    printf("Non : réussir sur les deux motifs originaux ne garantit pas la réussite sur leurs versions bruitées, car les pixels modifiés peuvent changer la décision.\n");
     return 0;
 }
 
