@@ -1,6 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Transforme le texte lu en 48 pixels (0/1) + le label.
+int texte_vers_motif(const char *contenu, int x[48], int *label)
+{
+    int n = 0;                      /* nombre de pixels lus */
+    const char *p = contenu;        /* on avance caractère par caractère */
+
+    while (*p != '\0' && n < 48) {
+        if (*p == '.')      x[n++] = 0;
+        else if (*p == '*') x[n++] = 1;
+        p++;
+    }
+
+    if (n != 48) return -1;         // motif incomplet 
+
+    *label = atoi(p);               // ce qui reste : la 9e ligne 
+    return 0;
+}
+
 char *lire_fichier_txt(const char *chemin)
 {
     FILE *fichier = fopen(chemin, "r");
