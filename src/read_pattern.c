@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 // Transforme le texte lu en 48 pixels (0/1) + le label. Car le perceptron ne sait pas lire le texte, il ne sait que lire des 0 et des 1.
 int texte_vers_motif(const char *contenu, int x[48], int *label)
@@ -21,7 +22,14 @@ int texte_vers_motif(const char *contenu, int x[48], int *label)
 
     if (n != 48) return -1;         // motif incomplet 
 
-    *label = atoi(p);               // ce qui reste : la 9e ligne 
+    while (isspace((unsigned char)*p)) p++;
+    char *fin;
+    long valeur = strtol(p, &fin, 10);
+    if (fin == p || valeur < 0 || valeur > 9) return -1;
+    while (isspace((unsigned char)*fin)) fin++;
+    if (*fin != '\0') return -1;
+
+    *label = (int)valeur;           // ce qui reste : la 9e ligne
     return 0;
 }
 
