@@ -5,13 +5,13 @@ Perceptron est une boîte qui contient tout ce que le neurone sait : ses 48 poid
 C’est cette boîte qui change pendant l’apprentissage.
 */
 
-#define N_IN 48
+#define N_IN 48 /* nombre de pixel */
 
 /* Le neurone : 48 poids + 1 biais */
 typedef struct {
     double w[N_IN];
     double b;
-} Perceptron;
+} Perceptron; 
 
 double score(const Perceptron *p, const int x[N_IN]);
 int    predict(double a);

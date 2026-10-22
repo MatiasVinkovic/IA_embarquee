@@ -1,6 +1,6 @@
 #include "perceptron.h"
 
-/* SCORE : a = w0*x0 + w1*x1 + ... + w47*x47 + b */
+/* On calcule le score : a = w0*x0 + w1*x1 + ... + w47*x47 + b */
 double score(const Perceptron *p, const int x[N_IN])
 {
     double a = p->b;                    /* on part du biais */
@@ -10,7 +10,7 @@ double score(const Perceptron *p, const int x[N_IN])
     return a;
 }
 
-/* DECISION : 1 si le score est positif ou nul, sinon 0 */
+/* Fonction de prédiction : 1 si le score est positif ou nul, sinon 0 */
 int predict(double a)
 {
     if (a >= 0.0) return 1;
