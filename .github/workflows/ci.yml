@@ -1,12 +1,22 @@
-name: Day 1 checks
-on: [push, pull_request]
-permissions:
-  contents: read
+name: THE_STRIKERS_IA_EMBARQUEE
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
 jobs:
-  tests:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v6
-      - name: Run data and numerical tests
-        run: python3 -m unittest discover -s tests -v
-      # Add YOUR model tests. Runner timings are not Raspberry Pi measurements.
+      - name: Get_source_code
+        uses: actions/checkout@v4
+
+      - name: Compile_C_files
+        run: make
+
+      - name: Execute_c_binaries
+        run: ./test_step1
+
