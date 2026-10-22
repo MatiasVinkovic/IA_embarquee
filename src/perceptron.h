@@ -1,5 +1,6 @@
 #ifndef PERCEPTRON_H
 #define PERCEPTRON_H
+#include "rng.h"
 /*
 Perceptron est une boîte qui contient tout ce que le neurone sait : ses 48 poids et son biais. 
 C’est cette boîte qui change pendant l’apprentissage.
@@ -16,5 +17,6 @@ typedef struct {
 double score(const Perceptron *p, const int x[N_IN]);
 int    predict(double a);
 int    update(Perceptron *p, const int x[N_IN], int d, double eta);
+void   perceptron_init(Perceptron *p, Rng *r);
 
 #endif

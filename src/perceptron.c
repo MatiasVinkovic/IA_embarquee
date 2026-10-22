@@ -31,3 +31,12 @@ int update(Perceptron *p, const int x[N_IN], int d, double eta)
 
     return e;
 }
+
+/* INITIALISATION : 48 poids au hasard dans [-0.1 ; 0.1], biais à -0.5 */
+void perceptron_init(Perceptron *p, Rng *r)
+{
+    for (int j = 0; j < N_IN; j++) {
+        p->w[j] = rng_uniform(r, -0.1, 0.1);
+    }
+    p->b = -0.5;
+}
