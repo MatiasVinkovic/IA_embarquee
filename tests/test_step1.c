@@ -8,7 +8,7 @@ int main(void)
 {
     /* --- Test lecture --- */
     int x[48], label;
-    char *contenu = lire_fichier_txt("../patterns/zero.txt");
+    char *contenu = lire_fichier_txt("patterns/zero.txt");
     if (contenu == NULL) return 1;
     if (texte_vers_motif(contenu, x, &label) != 0) { free(contenu); return 1; }
     free(contenu);
