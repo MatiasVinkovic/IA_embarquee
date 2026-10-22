@@ -9,13 +9,14 @@ int texte_vers_motif(const char *contenu, int x[48], int *label)
 
     while (*p != '\0' && n < 48) {
         if (*p == '.'){
-            x[n + 1 ] = 0;
+            x[n] = 0;
+            n++;                    /* on ne compte que les vrais pixels */
         }
         else if (*p == '*') {
-            x[n + 1] = 1;
+            x[n] = 1;
+            n++;
         }
-        p++;
-        n++;
+        p++;                        /* les '\n' sont sautés sans être comptés */
     }
 
     if (n != 48) return -1;         // motif incomplet 
