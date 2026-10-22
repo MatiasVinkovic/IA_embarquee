@@ -1,94 +1,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include "read_pattern.h"
 #include "perceptron.h"
 
 static int question2(void)
 {
-    int exemples[2][48];
-    int labels[2];
-    const char *chemins[] = {"patterns/zero.txt", "patterns/un.txt"};
+    int x[48];
+    int d;
+    char *contenu = lire_fichier_txt("patterns/un.txt");
+    if (contenu == NULL) return 1;
+    int statut = texte_vers_motif(contenu, x, &d);
+    free(contenu);
+    if (statut != 0) return 1;
+
     Rng rng;
     Perceptron modele;
     rng_seed(&rng, 42);
     perceptron_init(&modele, &rng);
 
-    for (int i = 0; i < 2; i++) {
-        char *contenu = lire_fichier_txt(chemins[i]);
-        if (contenu == NULL) return 1;
-        int statut = texte_vers_motif(contenu, exemples[i], &labels[i]);
-        free(contenu);
-        if (statut != 0) return 1;
-    }
+    double a = score(&modele, x);
+    int y = predict(a);
+    int erreur = d - y;
+    printf("Etape 1, un seul exemple (un.txt) : a = %.6f, y = %d, e = %d\n",
+           a, y, erreur);
 
-    for (int epoque = 0; epoque < 1000; epoque++) {
-        for (int i = 0; i < 2; i++) update(&modele, exemples[i], labels[i], 0.01);
-        if (predict(score(&modele, exemples[0])) == labels[0] &&
-            predict(score(&modele, exemples[1])) == labels[1]) break;
-    }
-
-    int propres_corrects = 0;
-    for (int i = 0; i < 2; i++)
-        propres_corrects += predict(score(&modele, exemples[i])) == labels[i];
-    if (propres_corrects != 2) {
-        fprintf(stderr, "Impossible d'apprendre les deux motifs propres.\n");
-        return 1;
-    }
-
-    printf("Question 2 - poids finaux après mise à jour :\n");
+    update(&modele, x, d, 0.01);
+    printf("Poids modifiés après cette mise à jour :\n");
     for (int j = 0; j < 48; j++) {
-        printf("w[%d] = %.6f\n", j, modele.w[j]);
+        if (x[j] != 0 && erreur != 0)
+            printf("w[%d] = %.6f\n", j, modele.w[j]);
     }
-    printf("Question 2 - biais final : %.6f\n", modele.b);
-
-    FILE *fichier = fopen("noise.csv", "r");
-    if (fichier == NULL) {
-        perror("Ouverture de noise.csv");
-        return 1;
-    }
-
-    char ligne[256];
-    char pixels[49];
-    int seed, chiffre, pourcentage, copie, inverses;
-    int bruit_total = 0;
-    int bruit_corrects = 0;
-    if (fgets(ligne, sizeof ligne, fichier) == NULL) {
-        fclose(fichier);
-        return 1;
-    }
-
-    while (fgets(ligne, sizeof ligne, fichier) != NULL) {
-        if (sscanf(ligne, "%d,%d,%d,%d,%d,%48s", &seed, &chiffre,
-                   &pourcentage, &copie, &inverses, pixels) != 6) continue;
-        if (chiffre > 1 || pourcentage != 10) continue;
-        if (strlen(pixels) != 48) {
-            fclose(fichier);
-            fprintf(stderr, "Motif bruité invalide dans noise.csv.\n");
-            return 1;
-        }
-
-        int x[48];
-        for (int j = 0; j < 48; j++) {
-            if (pixels[j] != '0' && pixels[j] != '1') {
-                fclose(fichier);
-                fprintf(stderr, "Pixel invalide dans noise.csv.\n");
-                return 1;
-            }
-            x[j] = pixels[j] - '0';
-        }
-        bruit_total++;
-        bruit_corrects += predict(score(&modele, x)) == chiffre;
-    }
-    fclose(fichier);
-
-    if (bruit_total == 0) {
-        fprintf(stderr, "Aucune copie à 10 %% trouvée dans noise.csv.\n");
-        return 1;
-    }
-    printf("Question 2 : motifs propres reconnus = %d/2 ; copies à 10 %% de bruit reconnues = %d/%d.\n",
-           propres_corrects, bruit_corrects, bruit_total);
+    printf("Biais après cette mise à jour : %.6f\n", modele.b);
     return 0;
 }
 
