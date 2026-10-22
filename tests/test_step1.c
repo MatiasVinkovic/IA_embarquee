@@ -113,94 +113,237 @@ static int question4(void)
 {
     int exemples[2][48];
     int labels[2];
-    const char *chemins[] = {"patterns/zero.txt", "patterns/un.txt"};
+
+    const char *chemins[] = {
+        "patterns/zero.txt",
+        "patterns/un.txt"
+    };
+
     Rng rng;
     Perceptron modele;
-    
-    rng_seed(&rng, 42);
+
+    /* Initialisation */
+    const unsigned int graine = 42;
+
+    rng_seed(&rng, graine);
     perceptron_init(&modele, &rng);
-    
-    // on charge les 2 motifs
+
+    /* Chargement des deux motifs */
     for (int i = 0; i < 2; i++) {
         char *contenu = lire_fichier_txt(chemins[i]);
-        if (contenu == NULL) return 1;
-        int statut = texte_vers_motif(contenu, exemples[i], &labels[i]);
+
+        if (contenu == NULL) {
+            return 1;
+        }
+
+        int statut = texte_vers_motif(
+            contenu,
+            exemples[i],
+            &labels[i]
+        );
+
         free(contenu);
-        if (statut != 0) return 1;
+
+        if (statut != 0) {
+            fprintf(stderr, "Erreur de lecture : %s\n", chemins[i]);
+            return 1;
+        }
     }
 
-    //entrainer le perceptron sur ces 2 motifs, 1000 epochs
+
     int ordre[2] = {0, 1};
-    for (int epoque = 1; epoque <= 1000; epoque++) {
+    int erreurs = 0;
+    int epoque;
+
+    FILE *f_erreurs = fopen("data/erreurs_epoques.csv", "w");
+
+    if (f_erreurs == NULL) {
+        perror("data/erreurs_epoques.csv");
+        return 1;
+    }
+
+    fprintf(f_erreurs, "epoque,erreurs\n");
+
+    for (epoque = 1; epoque <= 1000; epoque++) {
+
+        /* Mélanger l'ordre des deux motifs */
         rng_shuffle(&rng, ordre, 2);
+
+        /* Présenter chaque motif une fois */
         for (int i = 0; i < 2; i++) {
             int idx = ordre[i];
-            update(&modele, exemples[idx], labels[idx], 0.01);
+
+            update(
+                &modele,
+                exemples[idx],
+                labels[idx],
+                0.01
+            );
         }
-        if (predict(score(&modele, exemples[0])) == labels[0] &&
-            predict(score(&modele, exemples[1])) == labels[1]) {
+
+        /* Compter les erreurs sans modifier les poids */
+        erreurs = 0;
+
+        for (int i = 0; i < 2; i++) {
+            int prediction = predict(score(&modele, exemples[i]));
+
+            if (prediction != labels[i]) {
+                erreurs++;
+            }
+        }
+
+        fprintf(f_erreurs, "%d,%d\n", epoque, erreurs);
+
+        printf("Epoque %d : %d erreur(s)\n", epoque, erreurs);
+
+        /* Arrêt si les deux motifs sont reconnus */
+        if (erreurs == 0) {
             break;
         }
     }
 
-    // les copies bruitées sont lues dans noise.csv (graine 2026) : ce sont
-    // les mêmes copies qui serviront à l'étape 2
-    FILE *fichier = fopen("noise.csv", "r");
-    if (fichier == NULL) {
-        perror("Ouverture de noise.csv");
+    fclose(f_erreurs);
+
+    if (erreurs == 0) {
+        printf("Apprentissage reussi en %d epoque(s).\n", epoque);
+    } else {
+        printf("Limite de 1000 epoques atteinte : "
+               "%d erreur(s) restante(s).\n", erreurs);
+    }
+
+    FILE *f_poids = fopen("data/poids_appris.csv", "w");
+
+    if (f_poids == NULL) {
+        perror("data/poids_appris.csv");
         return 1;
     }
 
-    int total[11] = {0};        // nombre de copies testées, une case par p = 0, 10, ..., 100
-    int reconnus[11] = {0};
-    int n_inverses[11] = {0};
+    fprintf(f_poids, "parametre,valeur\n");
+    fprintf(f_poids, "graine,%u\n", graine);
+    fprintf(f_poids, "biais,%.10f\n", modele.b);
+
+    for (int i = 0; i < 48; i++) {
+        fprintf(f_poids, "w%d,%.10f\n", i, modele.w[i]);
+    }
+
+    fclose(f_poids);
+
+    /* Les copies bruitées sont lues dans noise.csv (graine 2026) :
+     * ce sont les mêmes copies qui serviront à l'étape 2 */
+    FILE *f_noise = fopen("noise.csv", "r");
+
+    if (f_noise == NULL) {
+        perror("noise.csv");
+        return 1;
+    }
+
+    /* Une case par niveau de bruit (p = 0, 10, ..., 100) et par chiffre */
+    int essais[11][2] = {{0}};
+    int erreurs_bruit[11][2] = {{0}};
+
     char ligne[256];
     char pixels[49];
-    int graine, chiffre, p, copie, inverses;
+    int graine_bruit, chiffre, p, copie, inverses;
 
-    // on saute l'en-tête : noise_seed,digit,p,copy,flipped,pixels
-    if (fgets(ligne, sizeof ligne, fichier) == NULL) {
-        fclose(fichier);
+    /* On saute l'en-tête : noise_seed,digit,p,copy,flipped,pixels */
+    if (fgets(ligne, sizeof ligne, f_noise) == NULL) {
+        fclose(f_noise);
         return 1;
     }
 
-    while (fgets(ligne, sizeof ligne, fichier) != NULL) {
-        if (sscanf(ligne, "%d,%d,%d,%d,%d,%48s", &graine, &chiffre,
-                   &p, &copie, &inverses, pixels) != 6) continue;
-        if (chiffre > 1) continue;                  // étape 1 : seulement 0 et 1
+    while (fgets(ligne, sizeof ligne, f_noise) != NULL) {
+        if (sscanf(ligne, "%d,%d,%d,%d,%d,%48s", &graine_bruit, &chiffre,
+                   &p, &copie, &inverses, pixels) != 6) {
+            continue;
+        }
+
+        /* Étape 1 : seulement les chiffres 0 et 1 */
+        if (chiffre < 0 || chiffre > 1) {
+            continue;
+        }
+
         if (strlen(pixels) != 48 || p < 0 || p > 100 || p % 10 != 0) {
-            fclose(fichier);
+            fclose(f_noise);
             fprintf(stderr, "Ligne invalide dans noise.csv : %s", ligne);
             return 1;
         }
 
         int x_bruite[48];
-        for (int j = 0; j < 48; j++) x_bruite[j] = pixels[j] - '0';
 
-        // Test de prédiction uniquement (sans apprentissage)
+        for (int j = 0; j < 48; j++) {
+            x_bruite[j] = pixels[j] - '0';
+        }
+
+        /* Prédire sans modifier les poids */
+        int prediction = predict(score(&modele, x_bruite));
         int k = p / 10;
-        n_inverses[k] = inverses;
-        total[k]++;
-        if (predict(score(&modele, x_bruite)) == chiffre) {
-            reconnus[k]++;
+
+        essais[k][chiffre]++;
+
+        if (prediction != chiffre) {
+            erreurs_bruit[k][chiffre]++;
         }
     }
-    fclose(fichier);
 
-    printf("\n--- Question 4 : evaluation de la robustesse au bruit (noise.csv) ---\n");
-    printf("Bruit (%%) | Pixels inverses | Reconnus | Taux succes\n");
-    printf("-----------------------------------------------------\n");
+    fclose(f_noise);
 
-    //on affiche pour p allant de 0 à 100%
+    printf("\n--- Question 4 : robustesse au bruit (noise.csv) ---\n");
+    printf("Bruit | Chiffre | Erreurs / essais | Taux d'erreur\n");
+    printf("----------------------------------------------------\n");
+
+    FILE *f_bruit = fopen("data/evaluation_bruit.csv", "w");
+
+    if (f_bruit == NULL) {
+        perror("data/evaluation_bruit.csv");
+        return 1;
+    }
+
+    fprintf(
+        f_bruit,
+        "pourcentage,chiffre,essais,erreurs,taux_erreur\n"
+    );
+
     for (int k = 0; k <= 10; k++) {
-        if (total[k] == 0) {
-            fprintf(stderr, "Aucune copie a %d %% dans noise.csv.\n", k * 10);
-            return 1;
+        for (int c = 0; c < 2; c++) {
+
+            if (essais[k][c] == 0) {
+                fprintf(stderr, "Aucune copie du chiffre %d a %d %% "
+                        "dans noise.csv.\n", c, k * 10);
+                fclose(f_bruit);
+                return 1;
+            }
+
+            /* Calcul du taux d'erreur en pourcentage */
+            double taux_erreur =
+                100.0 * erreurs_bruit[k][c] / essais[k][c];
+
+            printf(
+                "%3d %% |    %d    |     %2d / %d      | %5.1f %%\n",
+                k * 10,
+                c,
+                erreurs_bruit[k][c],
+                essais[k][c],
+                taux_erreur
+            );
+
+            fprintf(
+                f_bruit,
+                "%d,%d,%d,%d,%.2f\n",
+                k * 10,
+                c,
+                essais[k][c],
+                erreurs_bruit[k][c],
+                taux_erreur
+            );
         }
-        double taux = 100.0 * reconnus[k] / total[k];
-        printf("  %3d %%    |       %2d        | %3d / %3d |   %5.1f %%\n",
-               k * 10, n_inverses[k], reconnus[k], total[k], taux);
     }
+
+    fclose(f_bruit);
+
+    printf("\nFichiers generes :\n");
+    printf("- data/erreurs_epoques.csv\n");
+    printf("- data/poids_appris.csv\n");
+    printf("- data/evaluation_bruit.csv\n");
 
     return 0;
 }
