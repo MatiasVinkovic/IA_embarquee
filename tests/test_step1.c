@@ -4,7 +4,7 @@
 #include "read_pattern.h"
 #include "perceptron.h"
 
-static int calcul_exemple_etape1(void)
+static int question2(void)
 {
     int x[48];
     int d;
@@ -89,7 +89,7 @@ int main(void)
     printf("b = %.2f (attendu -0.50)\n", q.b);
     printf("w[0..2] = %.4f %.4f %.4f\n", q.w[0], q.w[1], q.w[2]);
 
-    if (calcul_exemple_etape1() != 0) return 1;
+    if (question2() != 0) return 1;
 
     return 0;
 }
