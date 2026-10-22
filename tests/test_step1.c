@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "read_pattern.h"
 #include "perceptron.h"
 
@@ -142,43 +143,63 @@ static int question4(void)
         }
     }
 
-    printf("\n--- Question 4 : evaluation de la robustesse au bruit ---\n");
-    printf("Bruit (%%) | Pixels inverses | Reconnus (/100) | Taux succes\n");
-    printf("-----------------------------------------------------------\n");
+    // les copies bruitées sont lues dans noise.csv (graine 2026) : ce sont
+    // les mêmes copies qui serviront à l'étape 2
+    FILE *fichier = fopen("noise.csv", "r");
+    if (fichier == NULL) {
+        perror("Ouverture de noise.csv");
+        return 1;
+    }
 
-    //on test pour p allant de 0 à 100%
-    for (int p = 0; p <= 100; p += 10) {
-        // n = arrondi(48 * p / 100) 
-        int n_inverses = (int)round((48.0 * (double)p) / 100.0);
-        int total_reconnus = 0;
+    int total[11] = {0};        // nombre de copies testées, une case par p = 0, 10, ..., 100
+    int reconnus[11] = {0};
+    int n_inverses[11] = {0};
+    char ligne[256];
+    char pixels[49];
+    int graine, chiffre, p, copie, inverses;
 
-        for (int c = 0; c < 2; c++) {              //pour chaque chiffre (0 et 1)
-            for (int copie = 0; copie < 50; copie++) { // 50 copie
-                int x_bruite[48];
-                memcpy(x_bruite, exemples[c], sizeof(exemples[c]));
+    // on saute l'en-tête : noise_seed,digit,p,copy,flipped,pixels
+    if (fgets(ligne, sizeof ligne, fichier) == NULL) {
+        fclose(fichier);
+        return 1;
+    }
 
-                // Préparer les 48 indices pour tirer n pixels distincts 
-                int indices[48];
-                for (int j = 0; j < 48; j++) indices[j] = j;
-                rng_shuffle(&rng, indices, 48);
-
-                //on inverse les N pixels dinstints
-                for (int j = 0; j < n_inverses; j++) {
-                    int idx = indices[j];
-                    x_bruite[idx] = 1 - x_bruite[idx];
-                }
-
-                // Test de prédiction uniquement (sans apprentissage) 
-                int pred = predict(score(&modele, x_bruite));
-                if (pred == labels[c]) {
-                    total_reconnus++;
-                }
-            }
+    while (fgets(ligne, sizeof ligne, fichier) != NULL) {
+        if (sscanf(ligne, "%d,%d,%d,%d,%d,%48s", &graine, &chiffre,
+                   &p, &copie, &inverses, pixels) != 6) continue;
+        if (chiffre > 1) continue;                  // étape 1 : seulement 0 et 1
+        if (strlen(pixels) != 48 || p < 0 || p > 100 || p % 10 != 0) {
+            fclose(fichier);
+            fprintf(stderr, "Ligne invalide dans noise.csv : %s", ligne);
+            return 1;
         }
 
-        double taux = (double)total_reconnus / 100.0 * 100.0;
-        printf("  %3d %%    |       %2d        |    %3d / 100    |   %5.1f %%\n",
-               p, n_inverses, total_reconnus, taux);
+        int x_bruite[48];
+        for (int j = 0; j < 48; j++) x_bruite[j] = pixels[j] - '0';
+
+        // Test de prédiction uniquement (sans apprentissage)
+        int k = p / 10;
+        n_inverses[k] = inverses;
+        total[k]++;
+        if (predict(score(&modele, x_bruite)) == chiffre) {
+            reconnus[k]++;
+        }
+    }
+    fclose(fichier);
+
+    printf("\n--- Question 4 : evaluation de la robustesse au bruit (noise.csv) ---\n");
+    printf("Bruit (%%) | Pixels inverses | Reconnus | Taux succes\n");
+    printf("-----------------------------------------------------\n");
+
+    //on affiche pour p allant de 0 à 100%
+    for (int k = 0; k <= 10; k++) {
+        if (total[k] == 0) {
+            fprintf(stderr, "Aucune copie a %d %% dans noise.csv.\n", k * 10);
+            return 1;
+        }
+        double taux = 100.0 * reconnus[k] / total[k];
+        printf("  %3d %%    |       %2d        | %3d / %3d |   %5.1f %%\n",
+               k * 10, n_inverses[k], reconnus[k], total[k], taux);
     }
 
     return 0;
@@ -237,9 +258,6 @@ int main(void)
     printf("poids dans [-0.1;0.1] : %s (attendu OUI)\n", dans_bornes ? "OUI" : "NON");
     printf("b = %.2f (attendu -0.50)\n", q.b);
     printf("w[0..2] = %.4f %.4f %.4f\n", q.w[0], q.w[1], q.w[2]);
-
-    if (question2() != 0) return 1;
-    if (question3() != 0) return 1;
 
     if (question2() != 0) return 1;
     if (question3() != 0) return 1;
