@@ -108,6 +108,82 @@ static int question3(void){
     return 0;
 }
 
+static int question4(void)
+{
+    int exemples[2][48];
+    int labels[2];
+    const char *chemins[] = {"patterns/zero.txt", "patterns/un.txt"};
+    Rng rng;
+    Perceptron modele;
+    
+    rng_seed(&rng, 42);
+    perceptron_init(&modele, &rng);
+    
+    // on charge les 2 motifs
+    for (int i = 0; i < 2; i++) {
+        char *contenu = lire_fichier_txt(chemins[i]);
+        if (contenu == NULL) return 1;
+        int statut = texte_vers_motif(contenu, exemples[i], &labels[i]);
+        free(contenu);
+        if (statut != 0) return 1;
+    }
+
+    //entrainer le perceptron sur ces 2 motifs, 1000 epochs
+    int ordre[2] = {0, 1};
+    for (int epoque = 1; epoque <= 1000; epoque++) {
+        rng_shuffle(&rng, ordre, 2);
+        for (int i = 0; i < 2; i++) {
+            int idx = ordre[i];
+            update(&modele, exemples[idx], labels[idx], 0.01);
+        }
+        if (predict(score(&modele, exemples[0])) == labels[0] &&
+            predict(score(&modele, exemples[1])) == labels[1]) {
+            break;
+        }
+    }
+
+    printf("\n--- Question 4 : evaluation de la robustesse au bruit ---\n");
+    printf("Bruit (%%) | Pixels inverses | Reconnus (/100) | Taux succes\n");
+    printf("-----------------------------------------------------------\n");
+
+    //on test pour p allant de 0 à 100%
+    for (int p = 0; p <= 100; p += 10) {
+        // n = arrondi(48 * p / 100) 
+        int n_inverses = (int)round((48.0 * (double)p) / 100.0);
+        int total_reconnus = 0;
+
+        for (int c = 0; c < 2; c++) {              //pour chaque chiffre (0 et 1)
+            for (int copie = 0; copie < 50; copie++) { // 50 copie
+                int x_bruite[48];
+                memcpy(x_bruite, exemples[c], sizeof(exemples[c]));
+
+                // Préparer les 48 indices pour tirer n pixels distincts 
+                int indices[48];
+                for (int j = 0; j < 48; j++) indices[j] = j;
+                rng_shuffle(&rng, indices, 48);
+
+                //on inverse les N pixels dinstints
+                for (int j = 0; j < n_inverses; j++) {
+                    int idx = indices[j];
+                    x_bruite[idx] = 1 - x_bruite[idx];
+                }
+
+                // Test de prédiction uniquement (sans apprentissage) 
+                int pred = predict(score(&modele, x_bruite));
+                if (pred == labels[c]) {
+                    total_reconnus++;
+                }
+            }
+        }
+
+        double taux = (double)total_reconnus / 100.0 * 100.0;
+        printf("  %3d %%    |       %2d        |    %3d / 100    |   %5.1f %%\n",
+               p, n_inverses, total_reconnus, taux);
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     /* --- Test lecture --- */
@@ -164,6 +240,10 @@ int main(void)
 
     if (question2() != 0) return 1;
     if (question3() != 0) return 1;
+
+    if (question2() != 0) return 1;
+    if (question3() != 0) return 1;
+    if (question4() != 0) return 1;
 
     return 0;
 }
