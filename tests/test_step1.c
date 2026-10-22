@@ -1,8 +1,91 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "read_pattern.h"
 #include "perceptron.h"
+
+static int question2(void)
+{
+    int exemples[2][48];
+    int labels[2];
+    const char *chemins[] = {"patterns/zero.txt", "patterns/un.txt"};
+    Rng rng;
+    Perceptron modele;
+    rng_seed(&rng, 42);
+    perceptron_init(&modele, &rng);
+
+    for (int i = 0; i < 2; i++) {
+        char *contenu = lire_fichier_txt(chemins[i]);
+        if (contenu == NULL) return 1;
+        int statut = texte_vers_motif(contenu, exemples[i], &labels[i]);
+        free(contenu);
+        if (statut != 0) return 1;
+    }
+
+    for (int epoque = 0; epoque < 1000; epoque++) {
+        for (int i = 0; i < 2; i++) update(&modele, exemples[i], labels[i], 0.01);
+        if (predict(score(&modele, exemples[0])) == labels[0] &&
+            predict(score(&modele, exemples[1])) == labels[1]) break;
+    }
+
+    int propres_corrects = 0;
+    for (int i = 0; i < 2; i++)
+        propres_corrects += predict(score(&modele, exemples[i])) == labels[i];
+    if (propres_corrects != 2) {
+        fprintf(stderr, "Impossible d'apprendre les deux motifs propres.\n");
+        return 1;
+    }
+
+    FILE *fichier = fopen("noise.csv", "r");
+    if (fichier == NULL) {
+        perror("Ouverture de noise.csv");
+        return 1;
+    }
+
+    char ligne[256];
+    char pixels[49];
+    int seed, chiffre, pourcentage, copie, inverses;
+    int bruit_total = 0;
+    int bruit_corrects = 0;
+    if (fgets(ligne, sizeof ligne, fichier) == NULL) {
+        fclose(fichier);
+        return 1;
+    }
+
+    while (fgets(ligne, sizeof ligne, fichier) != NULL) {
+        if (sscanf(ligne, "%d,%d,%d,%d,%d,%48s", &seed, &chiffre,
+                   &pourcentage, &copie, &inverses, pixels) != 6) continue;
+        if (chiffre > 1 || pourcentage != 10) continue;
+        if (strlen(pixels) != 48) {
+            fclose(fichier);
+            fprintf(stderr, "Motif bruité invalide dans noise.csv.\n");
+            return 1;
+        }
+
+        int x[48];
+        for (int j = 0; j < 48; j++) {
+            if (pixels[j] != '0' && pixels[j] != '1') {
+                fclose(fichier);
+                fprintf(stderr, "Pixel invalide dans noise.csv.\n");
+                return 1;
+            }
+            x[j] = pixels[j] - '0';
+        }
+        bruit_total++;
+        bruit_corrects += predict(score(&modele, x)) == chiffre;
+    }
+    fclose(fichier);
+
+    if (bruit_total == 0) {
+        fprintf(stderr, "Aucune copie à 10 %% trouvée dans noise.csv.\n");
+        return 1;
+    }
+    printf("Question 2 : motifs propres reconnus = %d/2 ; copies à 10 %% de bruit reconnues = %d/%d.\n",
+           propres_corrects, bruit_corrects, bruit_total);
+    printf("Non : réussir sur les deux motifs originaux ne garantit pas la réussite sur leurs versions bruitées, car les pixels modifiés peuvent changer la décision.\n");
+    return 0;
+}
 
 int main(void)
 {
@@ -57,6 +140,8 @@ int main(void)
     printf("poids dans [-0.1;0.1] : %s (attendu OUI)\n", dans_bornes ? "OUI" : "NON");
     printf("b = %.2f (attendu -0.50)\n", q.b);
     printf("w[0..2] = %.4f %.4f %.4f\n", q.w[0], q.w[1], q.w[2]);
+
+    if (question2() != 0) return 1;
 
     return 0;
 }
