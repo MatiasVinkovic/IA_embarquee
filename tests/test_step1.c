@@ -87,6 +87,79 @@ static int question2(void)
     return 0;
 }
 
+static int question3(void){
+
+    int exemples[2][48];
+    int labels[2];
+    const char *chemins[] = {"patterns/zero.txt", "patterns/un.txt"};
+    Rng rng;
+    Perceptron modele;
+    rng_seed(&rng, 42);
+    perceptron_init(&modele, &rng);
+
+    for (int i = 0; i < 2; i++) {
+        char *contenu = lire_fichier_txt(chemins[i]);
+
+        if (contenu == NULL) {
+            return 1;
+        }
+
+        int statut = texte_vers_motif(contenu, exemples[i], &labels[i]);
+        free(contenu);
+
+        if (statut != 0) {
+            fprintf(stderr, "Erreur de lecture du motif : %s\n", chemins[i]);
+            return 1;
+        }
+    }
+
+    int ordre[2] = {0, 1};
+    int erreurs = 0;
+    int epoque;
+    int compte_error_null = 0; // Compteur qui verifie combien d'epoque d'affiler ont 0 erreurs , permet au perceptron de finir son apprentissage apres 50 epoque à 0 erreur. 
+
+    for (epoque = 1; epoque <= 1000; epoque++) {
+
+        rng_shuffle(&rng, ordre, 2);
+        for (int i = 0; i < 2; i++) {
+            int indice = ordre[i];
+
+            update(&modele, exemples[indice], labels[indice], 0.01);
+        }
+
+        erreurs = 0;
+
+        for (int i = 0; i < 2; i++) {
+            int prediction = predict(score(&modele, exemples[i]));
+
+            if (prediction != labels[i]) {
+                erreurs++;
+            }
+        }
+
+        printf("Epoque %d : %d erreur(s)\n", epoque, erreurs);
+
+        if (erreurs == 0) {
+            compte_error_null++;
+        }
+        else{
+            compte_error_null = 0;
+        }
+        if (compte_error_null >= 50) {
+            break;
+        }
+    }
+    if (erreurs == 0) {
+        printf("Question 3 : apprentissage reussi en %d epoque(s).\n",
+               epoque);
+    } else {
+        printf("Question 3 : limite de 1000 epoques atteinte, "
+               "%d erreur(s) restante(s).\n", erreurs);
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     /* --- Test lecture --- */
@@ -142,6 +215,7 @@ int main(void)
     printf("w[0..2] = %.4f %.4f %.4f\n", q.w[0], q.w[1], q.w[2]);
 
     if (question2() != 0) return 1;
+    if (question3() != 0) return 1;
 
     return 0;
 }
