@@ -37,11 +37,11 @@ int update(Perceptron *p, const int x[N_IN], int d, double eta)
     return e;
 }
 
-int update_step2(Perceptron *p, int x[48], int d, double eta)
+double update_step2(Perceptron *p, int x[48], int d, double eta)
 {
     double a = score(p, x);
 
-    int delta = a - d;
+    double delta = a - d;
 
     for (int j = 0; j < 48; j++) {
         p->w[j] -= eta * delta * x[j];

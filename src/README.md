@@ -60,5 +60,33 @@ Le cours porte sur l'**IA embarquée** : le modèle doit finir sur un Raspberry 
 
 - **Le format des poids s'y prête.** Les poids de secours sont des `float32` little-endian bruts : en C, on les lit avec un simple `fread` dans un tableau de `float`.
 
+## Sur un petit exemple, calculer à la main la correction du perceptron, puis celle fondée sur a−d. Écrire ce qui diffère. Dans le programme, distinguer explicitement score, prediction et target.
 
+Le calcul commun (le score brut) :$a = (x_0 \times w_0) + b = (1 \times 0.2) + (-0.5) = -0.3$
 
+1. Correction avec l'ancienne règle (Étape 1 - Perceptron donc) :
+on a le score de -0.3, la prédiction est donc y = 0. L'erreur discrète est $e = d - y = 1 - 0 = 1$.
+Nouveau poids w0 = 0.2 + (0.01*1*1) = 0.210 et le nouveau biais b = -0.5 + (0.01*1) = -0.490
+
+2. Correction avec la nouvelle règle établie en question 1 de l'étape 2
+On utilise directement le score : delta =  a - d = -0.3 - 1 =  -1.3
+et le nouveau poids w0 = 0.2 - (0.01* -1.3 * 1) = 0.2 + 0.013 = 0.213
+et le nouveau biais b = -0.5 - (0.01*-1.3) = -0.5 + 0.013 = -0.487
+
+La méthode du perceptron qu'on utilisait avant: 
+
+- **`int update(Perceptron *p, const int x[N_IN], int d, double eta);`**
+
+corrigeait avec une valeur fixe (erreur = 1). tandis que la méthode de Widrow-Hoff introduit une nouvelle méthode
+δ = a − d ; wj ← wj − η δ xj ; b ← b − η δ.
+Pour classer après calcul : ŷ = 1 si a ≥ 0,5, sinon 0.
+
+la correction est donc maintenant plus forte et plus précise.
+
+On distingue bien dans le code: 
+
+Le score (a) : C'est la valeur brute à virgule calculée par le neurone (la somme pondérée). Il peut valoir -1.8, 0.45 ou 2.1. À l'étape 2, c'est lui qui sert à calculer l'erreur pour corriger les poids, ce qui n'était pas le cas à l'étape 1 car on comparait avec l'erreur.
+
+La target (d) : C'est la cible désirée (la vraie étiquette de l'image), qui vaut toujours exactement 0 ou 1.
+
+La prédiction (y ou y_hat) : C'est la décision finale du réseau (0 ou 1) obtenue en appliquant le seuil de 0.5 sur le score.
