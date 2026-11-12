@@ -1,9 +1,9 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Isrc
-TARGET = test_step1
+TARGET = test_step2
 
 # fichiers 
-SRCS = tests/test_step1.c src/perceptron.c src/read_pattern.c src/rng.c
+SRCS = tests/test_step2.c src/perceptron.c src/read_pattern.c src/rng.c
 
 all: $(TARGET)
 

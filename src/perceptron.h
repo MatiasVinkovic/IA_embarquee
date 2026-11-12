@@ -16,7 +16,9 @@ typedef struct {
 
 double score(const Perceptron *p, const int x[N_IN]);
 int    predict(double a);
+int predict_step2(double a);
 int    update(Perceptron *p, const int x[N_IN], int d, double eta);
+int update_step2(Perceptron *p, int x[48], int d, double eta);
 void   perceptron_init(Perceptron *p, Rng *r);
 
 #endif

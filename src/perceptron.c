@@ -17,6 +17,11 @@ int predict(double a)
     return 0;
 }
 
+int predict_step2(double a)
+{
+    return (a >= 0.5) ? 1 : 0;
+}
+
 /* MISE A JOUR : on corrige les poids seulement si le neurone s'est trompé
  * d = réponse attendue, y = réponse du neurone, e = d - y */
 int update(Perceptron *p, const int x[N_IN], int d, double eta)
@@ -30,6 +35,20 @@ int update(Perceptron *p, const int x[N_IN], int d, double eta)
     p->b = p->b + eta * e;
 
     return e;
+}
+
+int update_step2(Perceptron *p, int x[48], int d, double eta)
+{
+    double a = score(p, x);
+
+    int delta = a - d;
+
+    for (int j = 0; j < 48; j++) {
+        p->w[j] -= eta * delta * x[j];
+    }
+
+    p->b -= eta * delta;
+    return delta;
 }
 
 /* INITIALISATION : 48 poids au hasard dans [-0.1 ; 0.1], biais à -0.5 */
